@@ -1,19 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>{{ title }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='main.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WasteWise</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: #e9f5f1;
+            margin: 0;
+            color: #333;
+            padding: 20px;
+        }
+        .brand-name {
+            color: #2c3e50;
+            font-size: 5em;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            white-space: nowrap;
+        }
+        .typing-animation {
+            border-right: 2px solid #2c3e50;
+            animation: blink 0.7s infinite;
+        }
+        @keyframes blink {
+            50% { border-color: transparent; }
+        }
+        .upload-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 350px;
+            position: relative;
+            margin-top: 100px;
+        }
+        .drag-drop-area {
+            border: 2px dashed #4CAF50;
+            border-radius: 8px;
+            width: 100%;
+            height: 250px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2em;
+            position: relative;
+            overflow: hidden;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-label, .camera-button, .switch-camera-button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+            display: inline-block;
+        }
+        .file-label:hover, .camera-button:hover, .switch-camera-button:hover {
+            background-color: #45a049;
+        }
+        .camera-button {
+            margin-left: 10px;
+        }
+        #image-preview {
+            display: none;
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .upload-button {
+            padding: 10px 20px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            font-size: 1.2em;
+            transition: background-color 0.3s;
+        }
+        .upload-button:hover {
+            background-color: #1976D2;
+        }
+        #results {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+        video {
+            display: none;
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+    </style>
 
+</head>
 <body>
-    <div class="App">
-        <header class="App-header">
-            <img src="{{ url_for('static', filename='Octocat.png') }}" class="App-logo" alt="logo" />
-            <p>
-                GitHub Codespaces <span class="heart">♥️</span> Flask
-            </p>
-            <p class="small">
-                Edit <code>templates/index.html</code> and refresh to see your changes!
-            </p>
-        </header>
+    <div class="brand-name typing-animation" id="brand-name"></div>
+    <div class="upload-container">
+        <form id="upload-form" method="POST" action="/process-image" enctype="multipart/form-data">
+            <div class="drag-drop-area" id="drag-drop-area">
+                Drag & Drop your image here
+                <img id="image-preview" src="" alt="Image Preview">
+            </div>
+            <span class="file-label" id="choose-file-label" onclick="document.getElementById('file-input').click();">Choose File</span>
+            <input type="file" id="file-input" name="image" accept="image/*" onchange="previewImage(event)" required>
+            <button type="button" class="upload-button camera-button" onclick="openCamera()">Use Camera</button>
+            <button type="button" class="upload-button camera-button" onclick="switchCamera()">Switch Camera</button>
+            <button type="button" class="upload-button" onclick="captureImage()">Capture</button>
+            <button type="submit" class="upload-button">Analyze</button>
+            <video id="camera-stream" autoplay playsinline style="display:none;"></video>
+        </form>
+        <div id="results"></div>
     </div>
-</body>
 
+    <script>
+        const dragDropArea = document.getElementById('drag-drop-area');
+        const fileInput = document.getElementById('file-input');
+        const imagePreview = document.getElementById('image-preview');
+        const cameraStream = document.getElementById('camera-stream');
+        let currentStream = null;
+        let usingFrontCamera = false;
+
+        // Open the camera stream with default facing mode
+        async function openCamera() {
+            try {
+                const constraints = {
+                    video: { facingMode: usingFrontCamera ? "user" : "environment" }
+                };
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraStream.srcObject = currentStream;
+                cameraStream.style.display = 'block';
+                imagePreview.style.display = 'none';
+            } catch (error) {
+                console.error("Camera access error:", error);
+            }
+        }
+
+        // Switch between front and back cameras
+        async function switchCamera() {
+            usingFrontCamera = !usingFrontCamera; // Toggle camera mode
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop()); // Stop the current stream
+            }
+            openCamera(); // Re-open with the new facing mode
+        }
+
+        // Capture the image and save it automatically
+        async function captureImage() {
+            if (!currentStream) return; // Check if the camera is active
+
+            const canvas = document.createElement('canvas');
+            canvas.width = cameraStream.videoWidth;
+            canvas.height = cameraStream.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(cameraStream, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(blob => {
+                const file = new File([blob], "captured-image.jpg", { type: "image/jpeg" });
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+
+                previewImage({ target: { files: fileInput.files } });
+
+                // Automatically submit the form after the capture
+                document.getElementById('upload-form').submit();
+            });
+        }
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.src = e.target.result;
+                    imagePreview.style.display = 'block';
+                    dragDropArea.innerHTML = '';
+                    dragDropArea.appendChild(imagePreview);
+                    document.getElementById('choose-file-label').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    </script>
+</body>
 </html>

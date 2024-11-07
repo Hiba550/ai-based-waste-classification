@@ -1,0 +1,42 @@
+<!-- HTML for error page -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error</title>
+      <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh; /* Ensure full viewport height */
+            background-color: #f0f0f0; /* Light background */
+            margin: 0;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        p {
+            font-size: 18px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        a {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>An error occurred</h1>
+    <p>{{ error_message }}</p>
+    <a href="/">Go back</a>
+</body>
+</html>

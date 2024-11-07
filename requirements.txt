@@ -1,1 +1,4 @@
-Flask==2.3.2
+flask
+requests
+pillow
+gemini_api_key = "AIzaSyA7riJQwL8rfw1xkcvvN3yPNr4YkPpDCVw"
